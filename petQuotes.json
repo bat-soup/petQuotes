@@ -8,4 +8,8 @@
     	"The Haunted Woods has been a little too quiet recently...",
 	"Are we going to the battledome today?"
 ]
+  "randomPetQuotes" : [
+   "{pet} was mean to me today.",
+   "{pet} was really nice earlier."
+  ]
 }
