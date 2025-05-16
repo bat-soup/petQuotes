@@ -31,7 +31,7 @@
 
 	let setUpData = (async () => {
 		const QUOTES_CACHE_KEY = 'neopetsQuotesCache';
-		const QUOTES_URL = 'https://raw.githubusercontent.com/bat-soup/petQuotes/refs/heads/updated/petQuotes.json';
+		const QUOTES_URL = 'https://raw.githubusercontent.com/bat-soup/petQuotes/refs/heads/main/petQuotes.json';
 		const QUOTES_TIME = 12 * 1000; //short for testing
 
 		const USER_URL = 'https://www.neopets.com/quickref.phtml'
