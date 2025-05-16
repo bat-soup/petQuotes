@@ -26,7 +26,7 @@ If you have named the file incorrectly or named the variable incorrectly, the pr
 5. To host on github, make an account and create a repository, name it something meaningful but otherwise whatever you like, and upload the files. Click "commit changes." After uploading
 6. After the files are uploaded, get their direct links by clicking the "raw" button shown above their filename.
 7. Copy the URL that it takes you to, and edit the userscript so that the QUOTES_URL looks like this:
-   https://raw.githubusercontent.com/bat-soup/petQuotes/refs/heads/customToPets/${petName}Quotes.json;
+   `https://raw.githubusercontent.com/bat-soup/petQuotes/refs/heads/customToPets/${petName}Quotes.json;`
    ^^"bat-soup" will be replaced by your github username, and the rest of the directory will reflect how you named it. The important thing is, at the end, ensure that /${petName}Quotes.json is NOT replaced, and the entire url is surrounded by back-ticks (`)
 
 **IMPORTANT**
