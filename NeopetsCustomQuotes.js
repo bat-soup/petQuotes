@@ -7,11 +7,6 @@
 // @match        https://www.neopets.com/*
 // ==/UserScript==
 
-
-//TODO
-//https://itemdb.com.br/api/v1/search?type[]=!nc&rarity[]=0&rarity[]=85&status[]=active&category=grooming&category=plushies&category=toy&category=spooky%20food&category=food
-//work on more categories to grab from itemdb
-
 (function() {
 	'use strict';
 	console.log("inside IIFE");
@@ -31,7 +26,7 @@
 
 	let setUpData = (async () => {
 		const QUOTES_CACHE_KEY = 'neopetsQuotesCache';
-		const QUOTES_URL = 'https://raw.githubusercontent.com/bat-soup/petQuotes/refs/heads/main/petQuotes.json';
+		const QUOTES_URL = 'https://raw.githubusercontent.com/bat-soup/petQuotes/refs/heads/updated/petQuotes.json';
 		const QUOTES_TIME = 12 * 1000; //short for testing
 
 		const USER_URL = 'https://www.neopets.com/quickref.phtml'
@@ -55,7 +50,7 @@
 
 		//get quotes
 		const quoteObject = await fetchCachedItems(QUOTES_URL, QUOTES_CACHE_KEY, QUOTES_TIME);
-		quotes.push(...(quoteObject?.petQuotes ?? []); // initial quote load
+		quotes.push(...quoteObject?.petQuotes); // initial quote load
         quotes.push(...(quoteObject.petQuotesUser?.map(q => q.replace("{user}", userData.username)) ?? []));
 
 		//if user has multiple pets
@@ -78,7 +73,6 @@
             //check for data
             if(!quotes.length || !userData.username || !userData.petList || !userData.activePet){
                 console.warn("Required data missing. Aborting execution.");
-                return;
             }
 
             //generate random quote
@@ -129,8 +123,6 @@
 	async function getPetListAndActivePet(url) {
 
 		try {
-
-			//fetching quickref and creating dom parser
 			const response = await fetch(url);
 			const html = await response.text();
 
@@ -162,7 +154,7 @@
         const oldPage = document.querySelector('#neobdy'); //found on old pages
         console.log(oldPage);
 
-        if (existingQuote) {
+        if (existingQuote) { //replace existing quote
             console.log("Quote already exists");
         	existingQuote.innerHTML =
                 `<b>${userData.activePet} says: </b>
@@ -170,7 +162,7 @@
                  return ;
         }
 
-        const showQuote = oldPage ? false : Math.random() < .9; //30% chance to show TODO RESET
+        const showQuote = oldPage ? false : Math.random() < .3; //30% chance
         console.log(showQuote);
         if(!showQuote) return;
 
@@ -204,9 +196,6 @@
             boxShadow: '0 0 6px rgba(0,0,0,0.2)',
             pointerEvents: 'none' // prevents blocking clicks
          });
-        //for random old quotes on old pages, append custom quote instead
-        //check if on old page, if old quote showed up
-
 
         document.body.appendChild(quoteBox);
     }
