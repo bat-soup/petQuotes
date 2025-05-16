@@ -1,20 +1,18 @@
 // ==UserScript==
-// @name         Custom Pet-Quotes
+// @name         Custom Pet-Quotes PET-BASED
 // @namespace    http://tampermonkey.net/
 // @version      2025-05-11
-// @description  provide new-age pet quotes for the revamped neopet's pages
+// @description  provide new-age pet quotes for the revamped neopet's pages, specific to pet lore
 // @author       bat_soup
 // @match        https://www.neopets.com/*
 // ==/UserScript==
 
+//TODO MAKE AN EDGE CASE FOR PET NOT HAVING A SPECIFIC QUOTE DOCUMENT
 
-//TODO
-//https://itemdb.com.br/api/v1/search?type[]=!nc&rarity[]=0&rarity[]=85&status[]=active&category=grooming&category=plushies&category=toy&category=spooky%20food&category=food
-//work on more categories to grab from itemdb
+
 
 (function() {
 	'use strict';
-	console.log("inside IIFE");
 
 	//GLOBAL VARIABLES
 	const userData = {
@@ -24,50 +22,52 @@
 	};
 	const quotes = [];
 
+	//falback URL if specific pet doesn't have custom quotes
+	const FALLBACK_QUOTE_URL = 'https://raw.githubusercontent.com/bat-soup/petQuotes/refs/heads/customToPets/petQuotes.json';
+	const FALLBACK_KEY = 'neopetsQuotesCache'
+	const FALLBACK_OBJ_KEY = 'petQuotes'
+
 	//neopetsquotesache	===contains array of quotes
 	//pet list gathered on page load for edge cases
 	//active pet gathered on page load because changes frequently
     //user gathered on page load because might as well since I'm on quickref anyway
 
 	let setUpData = (async () => {
-		const QUOTES_CACHE_KEY = 'neopetsQuotesCache';
-		const QUOTES_URL = 'https://raw.githubusercontent.com/bat-soup/petQuotes/refs/heads/main/petQuotes.json';
-		const QUOTES_TIME = 12 * 1000; //short for testing
-
+		//different links for each pet for speed
+		//upload to cache in separate keys, only parse to array if that pet is active
+		const QUOTES_TIME = 60 * 60 * 1000 * 24 * 7; //one week
 		const USER_URL = 'https://www.neopets.com/quickref.phtml'
 
-
-		console.log("inside anon function");
 		let isLoggedIn = document.cookie.includes('neologin');
 		if(!isLoggedIn) {
-			localStorage.removeItem(QUOTES_CACHE_KEY);
-			localStorage.removeItem(`${QUOTES_CACHE_KEY}_expiresAt`);
+			for (let i = 0; i < localStorage.length; i++) {
+    			const key = localStorage.key(i);
+    			if (key && key.includes("neopetsQuotesCache")) {
+      				localStorage.removeItem(key);
+      				i--;
+    			}
+    		}
 			console.warn("User not logged in, not running quotes this page.");
 			return false;
 		}
-
+		//randomPetGrab not necessary, remove
 		//get user and pet list/active pet first
 		await getPetListAndActivePet(USER_URL);
-		//grab random pet
-		const randomPetGrab = userData.petList[Math.floor(Math.random() * userData.petList.length)];
+
+		//normalize names
+		const normalizedActivePet = userData?.activePet?.replace(/_/g, "").toLowerCase() || '';
+
+		const normalizedPets = userData?.petList?.map(pet => pet.replace(/_/g, "").toLowerCase()) || [];
+		if(normalizedPets.length){
+			for(const petName of normalizedPets) {
+				let QUOTES_CACHE_KEY = `neopetsQuotesCache_${petName}`;
+				let QUOTES_URL = `https://raw.githubusercontent.com/bat-soup/petQuotes/refs/heads/customToPets/${petName}Quotes.json`;
+				await fetchCachedItemsAndPushQuotes(QUOTES_URL, QUOTES_CACHE_KEY, QUOTES_TIME, normalizedActivePet);
+			}
+		}
 
         console.log(userData.username, userData.petList, userData.activePet);
 
-		//get quotes
-		const quoteObject = await fetchCachedItems(QUOTES_URL, QUOTES_CACHE_KEY, QUOTES_TIME);
-		quotes.push(...(quoteObject?.petQuotes ?? []); // initial quote load
-        quotes.push(...(quoteObject.petQuotesUser?.map(q => q.replace("{user}", userData.username)) ?? []));
-
-		//if user has multiple pets
-		if(userData.petList.length > 1) {
-			let randomPetGrab = '';
-			do{
-				randomPetGrab = userData.petList[Math.floor(Math.random() * userData.petList.length)];
-                console.log(randomPetGrab);
-			}while (randomPetGrab == userData.activePet) //make sure active pet isn't selected
-
-			quotes.push(...quoteObject.randomPetQuotes.map(q => q.replace("{pet}", randomPetGrab))); //load in quotes if user has more than one pet
-		}
 	})();
 
  //=====START EVENT LISTENER=====
@@ -88,14 +88,11 @@
 
         });
 //====HELPER FUNCTIONS======
-	async function fetchCachedItems(url, cacheKey, expiresTime){
+	async function fetchCachedItemsAndPushQuotes(url, cacheKey, expiresTime, activePet){
 		const expireKey = `${cacheKey}_expiresAt`;
-
 		const expireAt = Number(localStorage.getItem(expireKey) || '0');
 		const now = Date.now();
-
 		const isExpired = now > expireAt;
-        console.log(isExpired, now, expireAt);
 
 		if(isExpired) { //will go off if cacheKey is missing too
 			console.log("Data from cache ", cacheKey, " is stale or missing. Fetching new data.");
@@ -103,27 +100,62 @@
 				const response = await fetch(url);
 				if(!response.ok) { throw new Error("Unable to fetch data from ", url);}
 
-				const data = await (response.json());
+				const data = await response.json();
+
 				localStorage.setItem(cacheKey, JSON.stringify(data));
-				localStorage.setItem(expireKey, (Date.now() + expiresTime).toString());
+				localStorage.setItem(expireKey, (now + expiresTime).toString());
 				console.log("Fetched and cached data to key: ", cacheKey);
-				return data;
+
+				if(cacheKey.includes(activePet)){
+                    if(!data[`${activePet}Quotes`]) throw new Error(`Expected ${activePet}Quotes as JSON key. Double check syntax.`);
+					quotes.push(...data[`${activePet}Quotes`] ?? []);
+				}
+
 			} catch (e) {
 				console.warn("Fetch failed. Cache not updated at ", cacheKey, e);
+
+				const fallbackExpireKey = `${FALLBACK_KEY}_expiresAt`;
+				const fallbackExpireAt = Number(localStorage.getItem(fallbackExpireKey) || '0');
+				const fallbackIsExpires = now > fallbackExpireAt;
+
 				const cachedData = JSON.parse(localStorage.getItem(cacheKey));
 				if(!cachedData){
-					console.warn("Cache key ", cacheKey, " does not exist.");
-					return null;
+					console.warn("Cache key ", cacheKey, " does not exist. Falling back to basic quotes");
+
+					let fallbackData = JSON.parse(localStorage.getItem(FALLBACK_KEY));
+					if(!fallbackData || isExpired) {
+						console.warn("Fallback key not found or stale, fetching from fallback url.");
+						try {
+							const response = await fetch(FALLBACK_QUOTE_URL)
+							if(!response.ok) throw new Error("Unable to fetch data from ", FALLBACK_QUOTE_URL);
+
+							const data = await response.json();
+							localStorage.setItem(FALLBACK_KEY, JSON.stringify(data));
+							localStorage.setItem(`${FALLBACK_KEY}_expiresAt`, (now + expiresTime).toString());
+
+							console.log("Successfully fetched from fallback.")
+								if(cacheKey.includes(activePet)){
+									quotes.push(...data[FALLBACK_OBJ_KEY]);
+								}
+						} catch (e) {
+							console.error("Could not cache quotes at ", FALLBACK_KEY, e);
+							return;
+						}
+					}
+
 				}
 
 			}
-		}
-		else {
-			console.log("Cache is fresh. No fetch needed.")
-			const cachedData = JSON.parse(localStorage.getItem(cacheKey));
-            console.log(cachedData);
-			return cachedData;
-		}
+			return;
+		}else {
+           console.log("Data fresh. No fetch required");
+           if (cacheKey.includes(activePet)) {
+               let cacheData = JSON.parse(localStorage.getItem(cacheKey));
+               if(!cacheData[`${activePet}Quotes`]) throw new Error(`Expected ${activePet}Quotes as JSON key. Double check syntax.`);
+               quotes.push(...cacheData[`${activePet}Quotes`] ?? []);
+            }
+        }
+
 	}
 
 	async function getPetListAndActivePet(url) {
