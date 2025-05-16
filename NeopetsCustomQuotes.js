@@ -7,6 +7,11 @@
 // @match        https://www.neopets.com/*
 // ==/UserScript==
 
+
+//TODO
+//https://itemdb.com.br/api/v1/search?type[]=!nc&rarity[]=0&rarity[]=85&status[]=active&category=grooming&category=plushies&category=toy&category=spooky%20food&category=food
+//work on more categories to grab from itemdb
+
 (function() {
 	'use strict';
 	console.log("inside IIFE");
@@ -19,17 +24,15 @@
 	};
 	const quotes = [];
 
-	//neopetsquotesache
-	//===contains array of quotes
-	//userCache
-	//=====contains username
+	//neopetsquotesache	===contains array of quotes
 	//pet list gathered on page load for edge cases
-	//active pet gathered on page load
+	//active pet gathered on page load because changes frequently
+    //user gathered on page load because might as well since I'm on quickref anyway
 
 	let setUpData = (async () => {
 		const QUOTES_CACHE_KEY = 'neopetsQuotesCache';
-		const QUOTES_URL = 'https://raw.githubusercontent.com/bat-soup/petQuotes/refs/heads/main/petQuotes.json';
-		const QUOTES_TIME = 60 * 60 * 1000; //one minute for testing
+		const QUOTES_URL = 'https://raw.githubusercontent.com/bat-soup/petQuotes/refs/heads/updated/petQuotes.json';
+		const QUOTES_TIME = 12 * 1000; //short for testing
 
 		const USER_URL = 'https://www.neopets.com/quickref.phtml'
 
@@ -52,7 +55,8 @@
 
 		//get quotes
 		const quoteObject = await fetchCachedItems(QUOTES_URL, QUOTES_CACHE_KEY, QUOTES_TIME);
-		quotes.push(...quoteObject.petQuotes); // initial quote load
+		quotes.push(...(quoteObject?.petQuotes ?? []); // initial quote load
+        quotes.push(...(quoteObject.petQuotesUser?.map(q => q.replace("{user}", userData.username)) ?? []));
 
 		//if user has multiple pets
 		if(userData.petList.length > 1) {
@@ -74,6 +78,7 @@
             //check for data
             if(!quotes.length || !userData.username || !userData.petList || !userData.activePet){
                 console.warn("Required data missing. Aborting execution.");
+                return;
             }
 
             //generate random quote
@@ -90,6 +95,7 @@
 		const now = Date.now();
 
 		const isExpired = now > expireAt;
+        console.log(isExpired, now, expireAt);
 
 		if(isExpired) { //will go off if cacheKey is missing too
 			console.log("Data from cache ", cacheKey, " is stale or missing. Fetching new data.");
@@ -123,6 +129,8 @@
 	async function getPetListAndActivePet(url) {
 
 		try {
+
+			//fetching quickref and creating dom parser
 			const response = await fetch(url);
 			const html = await response.text();
 
