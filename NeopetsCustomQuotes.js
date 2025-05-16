@@ -5,91 +5,170 @@
 // @description  provide new-age pet quotes for the revamped neopet's pages
 // @author       bat_soup
 // @match        https://www.neopets.com/*
-// @grant        GM_getResourceText
-// @resource     quoteData https://raw.githubusercontent.com/bat-soup/petQuotes/refs/heads/main/petQuotes.json
-// @resource     randomPetQuoteData https://raw.githubusercontent.com/bat-soup/petQuotes/refs/heads/main/randomPetQuotes.json
 // ==/UserScript==
 
 (function() {
-    'use strict';
-//====== GLOBAL VARIABLES======
-    //read quoteData from raw json, insert into global "quotes"
-    const jsonText = GM_getResourceText("quoteData");
-    const quotes = JSON.parse(jsonText).petQuotes; //tested
-    //read optional quoteData for multiple pets
-    const rawQuotes = JSON.parse(GM_getResourceText("randomPetQuoteData")).randomPetQuotes; //tested
-    //to replace {pet} with randomPetGrab later
+	'use strict';
+	console.log("inside IIFE");
 
-//======START ASYNC======
+	//GLOBAL VARIABLES
+	const userData = {
+		username : '',
+		activePet : '',
+		petList : '',
+	};
+	const quotes = [];
 
-    async function fetchUserandPetNames() {
-        //test func
-        console.log("inside async");
-     try {
-         const response = await fetch('https://www.neopets.com/quickref.phtml');
-         const html = await response.text();
+	//neopetsquotesache
+	//===contains array of quotes
+	//userCache
+	//=====contains username
+	//pet list gathered on page load for edge cases
+	//active pet gathered on page load
 
-         const parser = new DOMParser();
-         const doc = parser.parseFromString(html, 'text/html');
+	let setUpData = (async () => {
+		const QUOTES_CACHE_KEY = 'neopetsQuotesCache';
+		const QUOTES_URL = 'https://raw.githubusercontent.com/bat-soup/petQuotes/refs/heads/main/petQuotes.json';
+		const QUOTES_TIME = 60 * 60 * 1000; //one minute for testing
 
-         //grabbing username
-         const userName = doc.querySelector('.user a')?.textContent.trim();
-         //grabbing pet names from image titles
-         const petImgs = doc.querySelectorAll('.pet_toggler img');
-         const petNames = [...petImgs].map(img => img.title.trim()).filter(Boolean);
-         //grabbing current active pet
-         const activePetImg = doc.querySelector('.active_pet .pet_toggler img');
-         const activePet = activePetImg.title.trim();
+		const USER_URL = 'https://www.neopets.com/quickref.phtml'
 
-         return { userName, petNames, activePet };
-     } catch (e) {
-      console.error("Failed to get user or pet names", e);
-     }
-    }
 
-//=======END ASYNC=======
+		console.log("inside anon function");
+		let isLoggedIn = document.cookie.includes('neologin');
+		if(!isLoggedIn) {
+			localStorage.removeItem(QUOTES_CACHE_KEY);
+			localStorage.removeItem(`${QUOTES_CACHE_KEY}_expiresAt`);
+			console.warn("User not logged in, not running quotes this page.");
+			return false;
+		}
 
+		//get user and pet list/active pet first
+		await getPetListAndActivePet(USER_URL);
+		//grab random pet
+		const randomPetGrab = userData.petList[Math.floor(Math.random() * userData.petList.length)];
+
+        console.log(userData.username, userData.petList, userData.activePet);
+
+		//get quotes
+		const quoteObject = await fetchCachedItems(QUOTES_URL, QUOTES_CACHE_KEY, QUOTES_TIME);
+		quotes.push(...quoteObject.petQuotes); // initial quote load
+
+		//if user has multiple pets
+		if(userData.petList.length > 1) {
+			let randomPetGrab = '';
+			do{
+				randomPetGrab = userData.petList[Math.floor(Math.random() * userData.petList.length)];
+                console.log(randomPetGrab);
+			}while (randomPetGrab == userData.activePet) //make sure active pet isn't selected
+
+			quotes.push(...quoteObject.randomPetQuotes.map(q => q.replace("{pet}", randomPetGrab))); //load in quotes if user has more than one pet
+		}
+	})();
+
+ //=====START EVENT LISTENER=====
     window.addEventListener('load', async () => {
-        //variable
-        var randomPetGrab = '';
+            await setUpData;
 
-        //retrieve pet list and username from async
-        const { userName, petNames, activePet} = await fetchUserandPetNames();
+            console.log("inside event listener");
+            //check for data
+            if(!quotes.length || !userData.username || !userData.petList || !userData.activePet){
+                console.warn("Required data missing. Aborting execution.");
+            }
 
-        //append quotes from optional if more than one pet
-        if(petNames.length > 1) {
-           do {
-               randomPetGrab = petNames[Math.floor(Math.random() * petNames.length)]
-           }while (randomPetGrab == activePet) //make sure randompet isn't same as active pet
+            //generate random quote
+            const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+            console.log(randomQuote);
+            appendQuote(randomQuote);
 
-           quotes.push(...rawQuotes.map(q => q.replace("{pet}", randomPetGrab)))
-        }
+        });
+//====HELPER FUNCTIONS======
+	async function fetchCachedItems(url, cacheKey, expiresTime){
+		const expireKey = `${cacheKey}_expiresAt`;
 
-        appendQuote(activePet);
+		const expireAt = Number(localStorage.getItem(expireKey) || '0');
+		const now = Date.now();
 
+		const isExpired = now > expireAt;
 
-    })
-//=====END EVENT LISTENER======
+		if(isExpired) { //will go off if cacheKey is missing too
+			console.log("Data from cache ", cacheKey, " is stale or missing. Fetching new data.");
+			try {
+				const response = await fetch(url);
+				if(!response.ok) { throw new Error("Unable to fetch data from ", url);}
 
-//=====helper functions=========
+				const data = await (response.json());
+				localStorage.setItem(cacheKey, JSON.stringify(data));
+				localStorage.setItem(expireKey, (Date.now() + expiresTime).toString());
+				console.log("Fetched and cached data to key: ", cacheKey);
+				return data;
+			} catch (e) {
+				console.warn("Fetch failed. Cache not updated at ", cacheKey, e);
+				const cachedData = JSON.parse(localStorage.getItem(cacheKey));
+				if(!cachedData){
+					console.warn("Cache key ", cacheKey, " does not exist.");
+					return null;
+				}
 
-    function appendQuote(activePet) {
-        //check if on old page
-        const onOldPage = document.querySelector('#neobdy') //id neobdy on old pages
+			}
+		}
+		else {
+			console.log("Cache is fresh. No fetch needed.")
+			const cachedData = JSON.parse(localStorage.getItem(cacheKey));
+            console.log(cachedData);
+			return cachedData;
+		}
+	}
+
+	async function getPetListAndActivePet(url) {
+
+		try {
+			const response = await fetch(url);
+			const html = await response.text();
+
+			const parser = new DOMParser();
+			const doc = parser.parseFromString(html, 'text/html');
+
+            //grabbing username
+			const userName = doc.querySelector('.user a')?.textContent.trim();
+			userData.username = userName;
+
+			//grabbing pet list
+			const petImgs = doc.querySelectorAll('.pet_toggler img');
+			userData.petList = [...petImgs].map(img => img.title.trim()).filter(Boolean);
+
+			//grabbing current active pet
+			const activePetImg = doc.querySelector('.active_pet .pet_toggler img');
+			userData.activePet = activePetImg.title.trim();
+
+		} catch(e) {
+			console.error("Failed to get list of pets or active pet.");
+		}
+		return;
+	}
+
+	function appendQuote(randomQuote) {
+
+		//check for existingquote, the case for old pages
         const existingQuote = document.querySelector('.neopetPhrase');
+        const oldPage = document.querySelector('#neobdy'); //found on old pages
+        console.log(oldPage);
 
-        //if on old page don't use randomizer on it, new page needs randomizer
-        if(!onOldPage){
-            const showQuote = Math.random() < .9; //30% chance to show TODO RESET
-            if(!showQuote) return;
+        if (existingQuote) {
+            console.log("Quote already exists");
+        	existingQuote.innerHTML =
+                `<b>${userData.activePet} says: </b>
+                 <br> ${randomQuote}`;
+                 return ;
         }
 
-
-        const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+        const showQuote = oldPage ? false : Math.random() < .9; //30% chance to show TODO RESET
+        console.log(showQuote);
+        if(!showQuote) return;
 
         //style pet's name
         const petNameSpan = document.createElement('span');
-        petNameSpan.textContent = `${activePet} says: `;
+        petNameSpan.textContent = `${userData.activePet} says: `;
         petNameSpan.style.fontWeight = 'bold';
         petNameSpan.style.color = '#333';
         //style quote
@@ -120,11 +199,7 @@
         //for random old quotes on old pages, append custom quote instead
         //check if on old page, if old quote showed up
 
-        if (existingQuote) {
-            existingQuote.innerHTML =
-                `<b>${activePet} says: </b>
-                 <br> ${randomQuote}`;
-        }
-        else if (!onOldPage) {document.body.appendChild(quoteBox);}
+
+        document.body.appendChild(quoteBox);
     }
 })();
