@@ -202,7 +202,7 @@
                  return ;
         }
 
-        const showQuote = oldPage ? false : Math.random() < .9; //30% chance to show TODO RESET
+        const showQuote = oldPage ? false : Math.random() < .3; //30% chance
         console.log(showQuote);
         if(!showQuote) return;
 
