@@ -11,5 +11,8 @@
   "randomPetQuotes" : [
    "{pet} was mean to me today.",
    "{pet} was really nice earlier."
-  ]
+  ],
+ "petQuotesUser" : [
+	 "{user}, do you really like me?",
+	 "{user}, what should I get you for your birthday?"
 }
