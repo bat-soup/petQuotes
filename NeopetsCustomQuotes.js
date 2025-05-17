@@ -5,6 +5,10 @@
 // @description  provide new-age pet quotes for the revamped neopet's pages
 // @author       bat_soup
 // @match        https://www.neopets.com/*
+// @exclude      https://www.neopets.com/trudydaily/game.phtml
+// @exclude      https://www.neopets.com/trudys_surprise.phtml
+// @exclude      https://www.neopets.com/ntimes/*
+// @run-at       document-start
 // ==/UserScript==
 
 (function() {
@@ -46,40 +50,32 @@
 		//grab random pet
 		const randomPetGrab = userData.petList[Math.floor(Math.random() * userData.petList.length)];
 
-        console.log(userData.username, userData.petList, userData.activePet);
-
 		//get quotes
 		const quoteObject = await fetchCachedItems(QUOTES_URL, QUOTES_CACHE_KEY, QUOTES_TIME);
 		quotes.push(...quoteObject?.petQuotes); // initial quote load
-        quotes.push(...(quoteObject.petQuotesUser?.map(q => q.replace("{user}", userData.username)) ?? []));
+        	quotes.push(...(quoteObject.petQuotesUser?.map(q => q.replace("{user}", userData.username)) ?? []));
 
 		//if user has multiple pets
 		if(userData.petList.length > 1) {
 			let randomPetGrab = '';
 			do{
 				randomPetGrab = userData.petList[Math.floor(Math.random() * userData.petList.length)];
-                console.log(randomPetGrab);
 			}while (randomPetGrab == userData.activePet) //make sure active pet isn't selected
 
-			quotes.push(...quoteObject.randomPetQuotes.map(q => q.replace("{pet}", randomPetGrab))); //load in quotes if user has more than one pet
+			quotes.push(...quoteObject?.randomPetQuotes?.map(q => q.replace("{pet}", randomPetGrab))); //load in quotes if user has more than one pet
 		}
 	})();
 
  //=====START EVENT LISTENER=====
     window.addEventListener('load', async () => {
             await setUpData;
-
-            console.log("inside event listener");
             //check for data
             if(!quotes.length || !userData.username || !userData.petList || !userData.activePet){
                 console.warn("Required data missing. Aborting execution.");
             }
-
             //generate random quote
             const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
-            console.log(randomQuote);
             appendQuote(randomQuote);
-
         });
 //====HELPER FUNCTIONS======
 	async function fetchCachedItems(url, cacheKey, expiresTime){
@@ -129,7 +125,7 @@
 			const parser = new DOMParser();
 			const doc = parser.parseFromString(html, 'text/html');
 
-            //grabbing username
+            		//grabbing username
 			const userName = doc.querySelector('.user a')?.textContent.trim();
 			userData.username = userName;
 
@@ -152,18 +148,15 @@
 		//check for existingquote, the case for old pages
         const existingQuote = document.querySelector('.neopetPhrase');
         const oldPage = document.querySelector('#neobdy'); //found on old pages
-        console.log(oldPage);
+	const validPage = document.body.querySelector('div'); //for edge cases like coconut shy process and training course completion
 
         if (existingQuote) { //replace existing quote
-            console.log("Quote already exists");
         	existingQuote.innerHTML =
                 `<b>${userData.activePet} says: </b>
                  <br> ${randomQuote}`;
                  return ;
         }
-
-        const showQuote = oldPage ? false : Math.random() < .3; //30% chance
-        console.log(showQuote);
+        const showQuote = oldPage ? false : !validPage ? false : Math.random() < .3; //30% chance
         if(!showQuote) return;
 
         //style pet's name
