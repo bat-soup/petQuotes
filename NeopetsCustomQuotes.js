@@ -5,10 +5,11 @@
 // @description  provide new-age pet quotes for the revamped neopet's pages, specific to pet lore
 // @author       bat_soup
 // @match        https://www.neopets.com/*
+// @exclude      https://www.neopets.com/trudydaily/game.phtml
+// @exclude      https://www.neopets.com/trudys_surprise.phtml
+// @exclude      https://www.neopets.com/ntimes/*
+// @run-at       document-start
 // ==/UserScript==
-
-//TODO MAKE AN EDGE CASE FOR PET NOT HAVING A SPECIFIC QUOTE DOCUMENT
-
 
 
 (function() {
@@ -73,8 +74,6 @@
  //=====START EVENT LISTENER=====
     window.addEventListener('load', async () => {
             await setUpData;
-
-            console.log("inside event listener");
             //check for data
             if(!quotes.length || !userData.username || !userData.petList || !userData.activePet){
                 console.warn("Required data missing. Aborting execution.");
@@ -192,18 +191,16 @@
 		//check for existingquote, the case for old pages
         const existingQuote = document.querySelector('.neopetPhrase');
         const oldPage = document.querySelector('#neobdy'); //found on old pages
-        console.log(oldPage);
+        const validPage = document.body.querySelector('div'); //for edge cases like coconut shy process, training school course completion.
 
         if (existingQuote) {
-            console.log("Quote already exists");
         	existingQuote.innerHTML =
                 `<b>${userData.activePet} says: </b>
                  <br> ${randomQuote}`;
                  return ;
         }
 
-        const showQuote = oldPage ? false : Math.random() < .3; //30% chance
-        console.log(showQuote);
+        const showQuote = oldPage ? false : !validPage ? false : Math.random() < .3; //30% chance to show TODO RESET
         if(!showQuote) return;
 
         //style pet's name
@@ -236,9 +233,6 @@
             boxShadow: '0 0 6px rgba(0,0,0,0.2)',
             pointerEvents: 'none' // prevents blocking clicks
          });
-        //for random old quotes on old pages, append custom quote instead
-        //check if on old page, if old quote showed up
-
 
         document.body.appendChild(quoteBox);
     }
