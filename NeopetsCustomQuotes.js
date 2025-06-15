@@ -8,9 +8,11 @@
 // @exclude      https://www.neopets.com/trudydaily/game.phtml
 // @exclude      https://www.neopets.com/trudys_surprise.phtml
 // @exclude      https://www.neopets.com/ntimes/*
+// @exclude      https://www.neopets.com/~*
 // @run-at       document-start
 // ==/UserScript==
 
+//TODO THE FALLBACK DOES NOT FETCH FROM CACHE, MAYBE WRITE ANOTHER FUNCTION OR DO A RECURSIVE FUNCTION TO CLEAN IT UP?
 
 (function() {
 	'use strict';
@@ -25,7 +27,6 @@
 
 	//falback URL if specific pet doesn't have custom quotes
 	const FALLBACK_QUOTE_URL = 'https://raw.githubusercontent.com/bat-soup/petQuotes/refs/heads/customToPets/petQuotes.json';
-	const FALLBACK_KEY = 'neopetsQuotesCache'
 	const FALLBACK_OBJ_KEY = 'petQuotes'
 
 	//neopetsquotesache	===contains array of quotes
@@ -97,7 +98,7 @@
 			console.log("Data from cache ", cacheKey, " is stale or missing. Fetching new data.");
 			try {
 				const response = await fetch(url);
-				if(!response.ok) { throw new Error("Unable to fetch data from ", url);}
+				if(!response.ok) { throw new Error(`Unable to fetch data from ${url}`);}
 
 				const data = await response.json();
 
@@ -111,35 +112,36 @@
 				}
 
 			} catch (e) {
-				console.warn("Fetch failed. Cache not updated at ", cacheKey, e);
-
-				const fallbackExpireKey = `${FALLBACK_KEY}_expiresAt`;
-				const fallbackExpireAt = Number(localStorage.getItem(fallbackExpireKey) || '0');
-				const fallbackIsExpires = now > fallbackExpireAt;
-
+				console.warn("Fetch failed. Cache not updated at ", cacheKey, " because the endpoint is down.", e);
 				const cachedData = JSON.parse(localStorage.getItem(cacheKey));
 				if(!cachedData){
 					console.warn("Cache key ", cacheKey, " does not exist. Falling back to basic quotes");
+					try {
+                        let fallbackExpireTime = 60 * 60 * 1000 * 24 //one day
+						const response = await fetch(FALLBACK_QUOTE_URL)
+                        console.log("fallbackurl:" , FALLBACK_QUOTE_URL)
+						if(!response.ok) throw new Error(`Unable to fetch data from ${FALLBACK_QUOTE_URL}`);
 
-					let fallbackData = JSON.parse(localStorage.getItem(FALLBACK_KEY));
-					if(!fallbackData || isExpired) {
-						console.warn("Fallback key not found or stale, fetching from fallback url.");
-						try {
-							const response = await fetch(FALLBACK_QUOTE_URL)
-							if(!response.ok) throw new Error("Unable to fetch data from ", FALLBACK_QUOTE_URL);
+						const data = await response.json();
+                        //need to restructure data to fit cache's specific pet key-value structure
+                       const defaultFallbackPet = 'petQuotes'; // first fallbackitem
+                        if (!data[defaultFallbackPet]) {
+                            throw new Error(`Fallback quote key '${defaultFallbackPet}' missing from fallback data.`);
+                        }
 
-							const data = await response.json();
-							localStorage.setItem(FALLBACK_KEY, JSON.stringify(data));
-							localStorage.setItem(`${FALLBACK_KEY}_expiresAt`, (now + expiresTime).toString());
+                        let restructured = {
+                            [`${activePet}Quotes`] : data[defaultFallbackPet]
+                        };
+                        localStorage.setItem(cacheKey, JSON.stringify(restructured));
+						localStorage.setItem(`${cacheKey}_expiresAt`, (now + expiresTime).toString());
 
-							console.log("Successfully fetched from fallback.")
-								if(cacheKey.includes(activePet)){
-									quotes.push(...data[FALLBACK_OBJ_KEY]);
+						console.log("Successfully fetched from fallback.")
+						if(cacheKey.includes(activePet)){
+							quotes.push(...data[FALLBACK_OBJ_KEY]);
 								}
 						} catch (e) {
-							console.error("Could not cache quotes at ", FALLBACK_KEY, e);
+							console.error("Could not cache quotes at ", cacheKey, "through fallback.", e);
 							return;
-						}
 					}
 
 				}
@@ -200,7 +202,7 @@
                  return ;
         }
 
-        const showQuote = oldPage ? false : !validPage ? false : Math.random() < .3; //30% chance to show TODO RESET
+        const showQuote = oldPage ? false : !validPage ? false : Math.random() < .9; //30% chance to show TODO RESET
         if(!showQuote) return;
 
         //style pet's name
@@ -223,7 +225,6 @@
             top: '65px', // adjust this if needed to match header spacing
             left: '40px', // adjust to align near pet icon
             width: '140px',
-            backgroundColor: 'f2f7f9',
             border: '1px solid #999',
             borderRadius: '8px',
             padding: '8px 12px',
@@ -233,6 +234,7 @@
             boxShadow: '0 0 6px rgba(0,0,0,0.2)',
             pointerEvents: 'none' // prevents blocking clicks
          });
+        quoteBox.style.setProperty('background-color', '#f2f7f9', 'important');
 
         document.body.appendChild(quoteBox);
     }
