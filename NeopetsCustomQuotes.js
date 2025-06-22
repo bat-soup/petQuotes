@@ -147,7 +147,7 @@
 				}
 
 			}
-			return;
+			
 		}else {
            console.log("Data fresh. No fetch required");
            if (cacheKey.includes(activePet)) {
@@ -202,7 +202,7 @@
                  return ;
         }
 
-        const showQuote = oldPage ? false : !validPage ? false : Math.random() < .9; //30% chance to show TODO RESET
+        const showQuote = oldPage ? false : !validPage ? false : Math.random() < .9; //20% chance to show TODO RESET
         if(!showQuote) return;
 
         //style pet's name
