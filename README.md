@@ -1,3 +1,13 @@
+# NOW UPDATED: SEE BELOW FOR CHANGES
+I restructured the code as every change I made ended up messing a few things up. certain cases would cause bugs. This may still need testing as I'm only testing for the cases in my account!
+1. Separated the logic of caching data from the JSON object and pulling quotes data from cache
+2. Ensure the normalization of data object keys when storing in cache
+3. removed unnecessary looping through the user's pet list since we are only worried about the current active pet
+4. ^ I still kept a few pieces of data that remain unused like the username and the rest of the pets the user has, this is for potential future builds that include the pets and username in the quotes
+5. The error handling should make a lot more sense.
+
+6. 
+
 # How to use quotes for Neopets Custom Quotes Script -- PET-BASED
 
 Neopets Custom Quote Script is a userscript that will allow your neopets to say things while browsing the new-style pages! This userscript also replaces the old-style page's quotes with the custom quotes.
@@ -8,7 +18,9 @@ I have a basic custom quotes page if you just want to get started/test the scrip
 
 
 ## Basic Custom Quotes, straight from the userscript
-Simply download or copy the userscript "Neopets Custom Quotes" -- MAIN branch, it will retrieve quote data from the JSON files here. Your basic quote script is ready to go!
+Simply download or copy the userscript "Neopets Custom Quotes" -- customToPets branch, it will retrieve quote data from the JSON files here. 
+If you don't have any customized pet quotes, this program will default to the basic quotes for your neopet. Any pet that does not have a customized script will pull from the basic script and only recheck if the cache's time is expired OR if you delete the item from cache.
+**The code on github shows the expiry time to be very short, you can change it to a week long by editing it to be `60 * 60 * 1000 * 24 * 7`. You can also change the frequency by doing CTRL + F .9 and changing it to a smaller number for a more realistic random fire. It is high for testing. Keep it if you wanna test around!**
 After you download or copy the contents of the userscript, go to your userscript manager (usually TamperMonkey or GreaseMonkey) and put the script there. *YOU DO NOT NEED TO DOWNLOAD THE JSON FILES*
 
 ## How to make your own custom quotes
