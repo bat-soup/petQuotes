@@ -8,6 +8,7 @@
 // @exclude      https://www.neopets.com/trudydaily/game.phtml
 // @exclude      https://www.neopets.com/trudys_surprise.phtml
 // @exclude      https://www.neopets.com/ntimes/*
+// @noframes
 // @run-at       document-start
 // ==/UserScript==
 
@@ -36,8 +37,13 @@
 		const USER_URL = 'https://www.neopets.com/quickref.phtml'
 
 
-		console.log("inside anon function");
-		let isLoggedIn = document.cookie.includes('neologin');
+		//if logged out, abort and clear all neopetsquote cache keys
+		const response = await fetch(USER_URL, {
+            credentials: 'include'});
+
+        const isLoggedIn = !response.url.includes('login');
+        console.log(`Log in Status: ${isLoggedIn}`);
+		
 		if(!isLoggedIn) {
 			localStorage.removeItem(QUOTES_CACHE_KEY);
 			localStorage.removeItem(`${QUOTES_CACHE_KEY}_expiresAt`);
