@@ -9,6 +9,7 @@
 // @exclude      https://www.neopets.com/trudys_surprise.phtml
 // @exclude      https://www.neopets.com/ntimes/*
 // @exclude      https://www.neopets.com/~*
+// @noframes
 // @run-at       document-start
 // ==/UserScript==
 
@@ -30,11 +31,16 @@
 
 	let setUpData = (async () => {
 		//different links for each pet for speed and edge cases
-		const QUOTES_TIME = 60 * 60 ; //one week
+		const QUOTES_TIME = 7 * 24 * 60 * 60 * 1000 ; //one week
 		const USER_URL = 'https://www.neopets.com/quickref.phtml';
 
 		//if logged out, abort and clear all neopetsquote cache keys
-		let isLoggedIn = document.cookie.includes('neologin');
+		const response = await fetch(USER_URL, {
+            credentials: 'include'});
+
+        const isLoggedIn = !response.url.includes('login');
+        console.log(`Log in Status: ${isLoggedIn}`);
+
 		if(!isLoggedIn) {
 			for (let i = 0; i < localStorage.length; i++) {
 				const key = localStorage.key(i);
@@ -202,7 +208,7 @@
                  return ;
         }
 
-        const showQuote = oldPage ? false : !validPage ? false : Math.random() < .9; //20% chance to show TODO RESET
+        const showQuote = oldPage ? false : !validPage ? false : Math.random() < .3; //30% chance to show TODO RESET
         if(!showQuote) return;
 
         //style pet's name
